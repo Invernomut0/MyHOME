@@ -16,5 +16,5 @@ If you've been using this integration in version 0.8 and prior, configuration st
 
 ## Configuration and use
 
-Please find the [configuration](https://github.com/anotherjulien/MyHOME/wiki/Configuration) on the project's wiki!  
-[Advanced uses](https://github.com/anotherjulien/MyHOME/wiki/Advanced-uses) are also listed in the wiki.
+Please find the [configuration](https://github.com/invernomut0/MyHOME/wiki/Configuration) on the project's wiki!  
+[Advanced uses](https://github.com/invernomut0/MyHOME/wiki/Advanced-uses) are also listed in the wiki.
