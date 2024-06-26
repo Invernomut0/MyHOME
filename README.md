@@ -1,5 +1,6 @@
-# MyHOME
+# MyHOME - ARBOREA EDITION
 MyHOME integration for Home-Assistant
+Modified by Lorenzo Vismara (aka Invernomut0)
 
 ## Installation
 The integration is able to install the gateway via the Home-Assistant graphical user interface, configuring the different devices needs to be done in YAML files however.
