@@ -1,4 +1,6 @@
 """Support for MyHome heating."""
+
+from config.homeassistant.core import callback
 from homeassistant.components.climate import (
     ClimateEntity,
     DOMAIN as PLATFORM,
@@ -16,7 +18,8 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import (
     CONF_NAME,
     CONF_MAC,
-    TEMP_CELSIUS,
+    STATE_UNKNOWN,
+    UnitOfTemperature,
 )
 
 from OWNd.message import (
@@ -35,6 +38,8 @@ from OWNd.message import (
     MESSAGE_TYPE_MODE_TARGET,
     MESSAGE_TYPE_ACTION,
 )
+
+from homeassistant.helpers.entity import Entity
 
 from .const import (
     CONF_PLATFORMS,
@@ -55,12 +60,137 @@ from .myhome_device import MyHOMEEntity
 from .gateway import MyHOMEGatewayHandler
 
 
+class VmcSensor(Entity):
+    def __init__(self, device_name, dehumidification_sensor):
+        self._name = f"VMC Sensor"
+        self._state = STATE_UNKNOWN
+        self._device_name = device_name
+        self._dehumidification_sensor = dehumidification_sensor
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def state(self):
+        return self._state
+
+    async def async_added_to_hass(self):
+        self.hass.bus.async_listen("myhome_message_event", self.handle_event)
+
+    @callback
+    def handle_event(self, event):
+        data = event.data
+        who = data.get("who")
+        where = data.get("where")
+        what = data.get("what")
+
+        if who == 25 and where == "231":
+            if what == 22:
+                self._state = "off"
+                self._dehumidification_sensor.set_state("off")
+                self._dehumidification_sensor.set_cold_water_switch(
+                    "off"
+                )  ## Chiamata a set_state per aggiornare Home Assistant
+            elif what == 24:
+                self._state = "on"
+            self.async_write_ha_state()
+
+
+class DehumidificationSensor(Entity):
+    def __init__(self, device_name):
+        self._name = f"VMC Deumidificazione"
+        self._state = STATE_UNKNOWN
+        self._cold_water_switch = STATE_UNKNOWN
+        self._device_name = device_name
+
+    def set_state(self, state):
+        """Set the state of the sensor and update Home Assistant."""
+        self._state = state
+        self.async_write_ha_state()
+
+    def set_cold_water_switch(self, state):
+        """Set the state of the sensor and update Home Assistant."""
+        self._cold_water_switch = state
+        self.async_write_ha_state()
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def state(self):
+        return self._state
+
+    @property
+    def cold_water_switch(self):
+        return self._cold_water_switch
+
+    async def async_added_to_hass(self):
+        self.hass.bus.async_listen("myhome_message_event", self.handle_event)
+
+    @callback
+    def handle_event(self, event):
+        data = event.data
+        who = data.get("who")
+        where = data.get("where")
+        what = data.get("what")
+
+        if who == 1 and where in ["02"]:
+            if what == 1:
+                self._state = "on"
+            elif what == 0:
+                self._state = "off"
+            self.async_write_ha_state()
+
+        if who == 1 and where in ["01"]:
+            if what == 1:
+                self._cold_water_switch = "on"
+            elif what == 0:
+                self._cold_water_switch = "off"
+            self.async_write_ha_state()
+
+
+class HumidityAlarmSensor(Entity):
+    def __init__(self, device_name):
+        self._name = f"VMC Allarme Umidità"
+        self._state = STATE_UNKNOWN
+        self._device_name = device_name
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def state(self):
+        return self._state
+
+    async def async_added_to_hass(self):
+        self.hass.bus.async_listen("myhome_message_event", self.handle_event)
+
+    @callback
+    def handle_event(self, event):
+        data = event.data
+        who = data.get("who")
+        where = data.get("where")
+        what = data.get("what")
+
+        if who == 1 and where == "03":
+            if what == 0:
+                self._state = "on"
+            elif what == 1:
+                self._state = "off"
+            self.async_write_ha_state()
+
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
     if PLATFORM not in hass.data[DOMAIN][config_entry.data[CONF_MAC]][CONF_PLATFORMS]:
         return True
 
     _climate_devices = []
-    _configured_climate_devices = hass.data[DOMAIN][config_entry.data[CONF_MAC]][CONF_PLATFORMS][PLATFORM]
+    _configured_climate_devices = hass.data[DOMAIN][config_entry.data[CONF_MAC]][
+        CONF_PLATFORMS
+    ][PLATFORM]
 
     for _climate_device in _configured_climate_devices.keys():
         _climate_devices.append(
@@ -70,28 +200,53 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 who=_configured_climate_devices[_climate_device][CONF_WHO],
                 where=_configured_climate_devices[_climate_device][CONF_ZONE],
                 name=_configured_climate_devices[_climate_device][CONF_NAME],
-                heating=_configured_climate_devices[_climate_device][CONF_HEATING_SUPPORT],
-                cooling=_configured_climate_devices[_climate_device][CONF_COOLING_SUPPORT],
+                heating=_configured_climate_devices[_climate_device][
+                    CONF_HEATING_SUPPORT
+                ],
+                cooling=_configured_climate_devices[_climate_device][
+                    CONF_COOLING_SUPPORT
+                ],
                 fan=_configured_climate_devices[_climate_device][CONF_FAN_SUPPORT],
-                standalone=_configured_climate_devices[_climate_device][CONF_STANDALONE],
+                standalone=_configured_climate_devices[_climate_device][
+                    CONF_STANDALONE
+                ],
                 central=_configured_climate_devices[_climate_device][CONF_CENTRAL],
-                manufacturer=_configured_climate_devices[_climate_device][CONF_MANUFACTURER],
+                manufacturer=_configured_climate_devices[_climate_device][
+                    CONF_MANUFACTURER
+                ],
                 model=_configured_climate_devices[_climate_device][CONF_DEVICE_MODEL],
                 gateway=hass.data[DOMAIN][config_entry.data[CONF_MAC]][CONF_ENTITY],
             )
         )
 
     async_add_entities(_climate_devices)
+    device_name = "VMC"
+
+    dehumidification_sensor = DehumidificationSensor(device_name)
+    vmc_sensor = VmcSensor(device_name, dehumidification_sensor)
+    humidity_alarm_sensor = HumidityAlarmSensor(device_name)
+    # last_message_sensor = LastMessages(device_name)
+    async_add_entities(
+        [
+            vmc_sensor,
+            dehumidification_sensor,
+            humidity_alarm_sensor,
+        ]
+    )
 
 
 async def async_unload_entry(hass, config_entry):
     if PLATFORM not in hass.data[DOMAIN][config_entry.data[CONF_MAC]][CONF_PLATFORMS]:
         return True
 
-    _configured_climate_devices = hass.data[DOMAIN][config_entry.data[CONF_MAC]][CONF_PLATFORMS][PLATFORM]
+    _configured_climate_devices = hass.data[DOMAIN][config_entry.data[CONF_MAC]][
+        CONF_PLATFORMS
+    ][PLATFORM]
 
     for _climate_device in _configured_climate_devices.keys():
-        del hass.data[DOMAIN][config_entry.data[CONF_MAC]][CONF_PLATFORMS][PLATFORM][_climate_device]
+        del hass.data[DOMAIN][config_entry.data[CONF_MAC]][CONF_PLATFORMS][PLATFORM][
+            _climate_device
+        ]
 
 
 class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
@@ -126,7 +281,7 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
         self._standalone = standalone
         self._central = True if self._where == "#0" else central
 
-        self._attr_temperature_unit = TEMP_CELSIUS
+        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
         self._attr_precision = 0.1
         self._attr_target_temperature_step = 0.5
         self._attr_min_temp = 5
@@ -167,7 +322,9 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
 
         Only used by the generic entity update service.
         """
-        await self._gateway_handler.send_status_request(OWNHeatingCommand.status(self._where))
+        await self._gateway_handler.send_status_request(
+            OWNHeatingCommand.status(self._where)
+        )
 
     @property
     def target_temperature(self) -> float:
@@ -221,7 +378,10 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
-        target_temperature = kwargs.get("temperature", self._local_target_temperature) - self._local_offset
+        target_temperature = (
+            kwargs.get("temperature", self._local_target_temperature)
+            - self._local_offset
+        )
         if self._attr_hvac_mode == HVACMode.HEAT:
             await self._gateway_handler.send(
                 OWNHeatingCommand.set_temperature(
@@ -273,7 +433,9 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 message.human_readable_log,
             )
             self._target_temperature = message.set_temperature
-            self._local_target_temperature = self._target_temperature + self._local_offset
+            self._local_target_temperature = (
+                self._target_temperature + self._local_offset
+            )
         elif message.message_type == MESSAGE_TYPE_LOCAL_OFFSET:
             LOGGER.info(
                 "%s %s",
@@ -282,7 +444,9 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
             )
             self._local_offset = message.local_offset
             if self._target_temperature is not None:
-                self._local_target_temperature = self._target_temperature + self._local_offset
+                self._local_target_temperature = (
+                    self._target_temperature + self._local_offset
+                )
         elif message.message_type == MESSAGE_TYPE_LOCAL_TARGET_TEMPERATURE:
             LOGGER.info(
                 "%s %s",
@@ -290,9 +454,14 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 message.human_readable_log,
             )
             self._local_target_temperature = message.local_set_temperature
-            self._target_temperature = self._local_target_temperature - self._local_offset
+            self._target_temperature = (
+                self._local_target_temperature - self._local_offset
+            )
         elif message.message_type == MESSAGE_TYPE_MODE:
-            if message.mode == CLIMATE_MODE_AUTO and HVACMode.AUTO in self._attr_hvac_modes:
+            if (
+                message.mode == CLIMATE_MODE_AUTO
+                and HVACMode.AUTO in self._attr_hvac_modes
+            ):
                 LOGGER.info(
                     "%s %s",
                     self._gateway_handler.log_id,
@@ -301,7 +470,10 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 self._attr_hvac_mode = HVACMode.AUTO
                 if self._attr_hvac_action == HVACAction.OFF:
                     self._attr_hvac_action = HVACAction.IDLE
-            elif message.mode == CLIMATE_MODE_COOL and HVACMode.COOL in self._attr_hvac_modes:
+            elif (
+                message.mode == CLIMATE_MODE_COOL
+                and HVACMode.COOL in self._attr_hvac_modes
+            ):
                 LOGGER.info(
                     "%s %s",
                     self._gateway_handler.log_id,
@@ -310,7 +482,10 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 self._attr_hvac_mode = HVACMode.COOL
                 if self._attr_hvac_action == HVACAction.OFF:
                     self._attr_hvac_action = HVACAction.IDLE
-            elif message.mode == CLIMATE_MODE_HEAT and HVACMode.HEAT in self._attr_hvac_modes:
+            elif (
+                message.mode == CLIMATE_MODE_HEAT
+                and HVACMode.HEAT in self._attr_hvac_modes
+            ):
                 LOGGER.info(
                     "%s %s",
                     self._gateway_handler.log_id,
@@ -328,7 +503,10 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 self._attr_hvac_mode = HVACMode.OFF
                 self._attr_hvac_action = HVACAction.OFF
         elif message.message_type == MESSAGE_TYPE_MODE_TARGET:
-            if message.mode == CLIMATE_MODE_AUTO and HVACMode.AUTO in self._attr_hvac_modes:
+            if (
+                message.mode == CLIMATE_MODE_AUTO
+                and HVACMode.AUTO in self._attr_hvac_modes
+            ):
                 LOGGER.info(
                     "%s %s",
                     self._gateway_handler.log_id,
@@ -337,7 +515,10 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 self._attr_hvac_mode = HVACMode.AUTO
                 if self._attr_hvac_action == HVACAction.OFF:
                     self._attr_hvac_action = HVACAction.IDLE
-            elif message.mode == CLIMATE_MODE_COOL and HVACMode.COOL in self._attr_hvac_modes:
+            elif (
+                message.mode == CLIMATE_MODE_COOL
+                and HVACMode.COOL in self._attr_hvac_modes
+            ):
                 LOGGER.info(
                     "%s %s",
                     self._gateway_handler.log_id,
@@ -346,7 +527,10 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 self._attr_hvac_mode = HVACMode.COOL
                 if self._attr_hvac_action == HVACAction.OFF:
                     self._attr_hvac_action = HVACAction.IDLE
-            elif message.mode == CLIMATE_MODE_HEAT and HVACMode.HEAT in self._attr_hvac_modes:
+            elif (
+                message.mode == CLIMATE_MODE_HEAT
+                and HVACMode.HEAT in self._attr_hvac_modes
+            ):
                 LOGGER.info(
                     "%s %s",
                     self._gateway_handler.log_id,
@@ -364,8 +548,11 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 self._attr_hvac_mode = HVACMode.OFF
                 self._attr_hvac_action = HVACAction.OFF
             self._target_temperature = message.set_temperature
-            self._local_target_temperature = self._target_temperature + self._local_offset
+            self._local_target_temperature = (
+                self._target_temperature + self._local_offset
+            )
         elif message.message_type == MESSAGE_TYPE_ACTION:
+            # ATTUATORI
             LOGGER.info(
                 "%s %s",
                 self._gateway_handler.log_id,
@@ -385,5 +572,10 @@ class MyHOMEClimate(MyHOMEEntity, ClimateEntity):
                 self._attr_hvac_action = HVACAction.OFF
             else:
                 self._attr_hvac_action = HVACAction.IDLE
-
+        else:
+            LOGGER.info(
+                "****** - %s %s",
+                self._gateway_handler.log_id,
+                message.human_readable_log,
+            )
         self.async_schedule_update_ha_state()
