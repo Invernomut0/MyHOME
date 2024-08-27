@@ -1,11 +1,11 @@
 {
   "domain": "myhome",
   "integration_type": "hub",
-  "name": "MyHOME - Arborea",
+  "name": "MyHOME",
   "version": "0.9.3",
   "config_flow": true,
-  "documentation": "https://github.com/Invernomut0/MyHOME",
-  "issue_tracker": "https://github.com/Invernomut0/MyHOME/issues",
+  "documentation": "https://github.com/anotherjulien/MyHOME",
+  "issue_tracker": "https://github.com/anotherjulien/MyHOME/issues",
   "requirements": [
     "OWNd==0.7.48"
   ],
@@ -29,11 +29,6 @@
       "st": "upnp:rootdevice",
       "manufacturer": "BTicino S.p.A.",
       "modelName": "F455"
-    },
-    {
-      "st": "upnp:rootdevice",
-      "manufacturer": "BTicino S.p.A.",
-      "modelName": "F459"
     },
     {
       "st": "upnp:rootdevice",
@@ -72,6 +67,6 @@
     }
   ],
   "codeowners": [
-    "@Invernomut0"
+    "@anotherjulien"
   ]
 }

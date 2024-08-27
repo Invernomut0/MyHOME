@@ -1,6 +1,6 @@
 """Support for MyHome heating."""
 
-from config.homeassistant.core import callback
+from homeassistant.core import callback
 from homeassistant.components.climate import (
     ClimateEntity,
     DOMAIN as PLATFORM,
