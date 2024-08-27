@@ -59,6 +59,8 @@ from .const import (
 from .myhome_device import MyHOMEEntity
 from .gateway import MyHOMEGatewayHandler
 
+Arborea_mag = "[ARBOREA  VMC - Debug Msg]"
+
 
 class VmcSensor(Entity):
     def __init__(self, device_name, dehumidification_sensor):
@@ -89,11 +91,24 @@ class VmcSensor(Entity):
             if what == 22:
                 self._state = "off"
                 self._dehumidification_sensor.set_state("off")
-                self._dehumidification_sensor.set_cold_water_switch(
-                    "off"
-                )  ## Chiamata a set_state per aggiornare Home Assistant
+                self._dehumidification_sensor.set_cold_water_switch("off")
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "VMC Sensor - OFF",
+                )
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "Dehumidification Sensor - OFF",
+                )
             elif what == 24:
                 self._state = "on"
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "VMC Sensor - ON",
+                )
             self.async_write_ha_state()
 
 
@@ -139,15 +154,35 @@ class DehumidificationSensor(Entity):
         if who == 1 and where in ["02"]:
             if what == 1:
                 self._state = "on"
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "Dehumidification Sensor - ON",
+                )
             elif what == 0:
                 self._state = "off"
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "Dehumidification Sensor - OFF",
+                )
             self.async_write_ha_state()
 
         if who == 1 and where in ["01"]:
             if what == 1:
                 self._cold_water_switch = "on"
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "Coold Water valve - ON",
+                )
             elif what == 0:
                 self._cold_water_switch = "off"
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "Coold Water valve - OFF",
+                )
             self.async_write_ha_state()
 
 
@@ -178,8 +213,18 @@ class HumidityAlarmSensor(Entity):
         if who == 1 and where == "03":
             if what == 0:
                 self._state = "on"
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "Humidity Alarm Sensor - ON",
+                )
             elif what == 1:
                 self._state = "off"
+                LOGGER.info(
+                    "%s %s",
+                    Arborea_mag,
+                    "Humidity Alarm Sensor - OFF",
+                )
             self.async_write_ha_state()
 
 
