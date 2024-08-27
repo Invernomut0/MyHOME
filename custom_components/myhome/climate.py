@@ -118,6 +118,7 @@ class DehumidificationSensor(Entity):
         self._state = STATE_UNKNOWN
         self._cold_water_switch = STATE_UNKNOWN
         self._device_name = device_name
+        self._attributes = {"cold_water_switch": self._cold_water_switch}
 
     def set_state(self, state):
         """Set the state of the sensor and update Home Assistant."""
@@ -127,6 +128,7 @@ class DehumidificationSensor(Entity):
     def set_cold_water_switch(self, state):
         """Set the state of the sensor and update Home Assistant."""
         self._cold_water_switch = state
+        self._attributes["cold_water_switch"] = state
         self.async_write_ha_state()
 
     @property
@@ -140,6 +142,11 @@ class DehumidificationSensor(Entity):
     @property
     def cold_water_switch(self):
         return self._cold_water_switch
+
+    @property
+    def extra_state_attributes(self):
+        """Return the extra state attributes."""
+        return self._attributes
 
     async def async_added_to_hass(self):
         self.hass.bus.async_listen("myhome_message_event", self.handle_event)
@@ -267,9 +274,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(_climate_devices)
     device_name = "VMC"
 
-    dehumidification_sensor = DehumidificationSensor(device_name)
-    vmc_sensor = VmcSensor(device_name, dehumidification_sensor)
-    humidity_alarm_sensor = HumidityAlarmSensor(device_name)
+    dehumidification_sensor = DehumidificationSensor("Dehumidification_Sensor")
+    vmc_sensor = VmcSensor("VMC_Sensor", dehumidification_sensor)
+    humidity_alarm_sensor = HumidityAlarmSensor("Humidity_Alarm_Sensor")
     # last_message_sensor = LastMessages(device_name)
     async_add_entities(
         [
