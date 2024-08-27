@@ -11,4 +11,4 @@ It is possible that upon first install (and updates), the OWNd listener process 
 
 ## Configuration and use
 
-Please find the [configuration](https://github.com/invernomut0/MyHOME/wiki/Configuration) on the project's wiki!  
+Please find the [configuration](https://github.com/invernomut0/MyHOME/wiki/Home) on the project's wiki!  
